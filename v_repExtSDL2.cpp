@@ -63,16 +63,17 @@ LIBRARY vrepLib; // the V-REP library that we will dynamically load and bind
 class HapticJoystick
 {
 public:
-	bool init_sdl();
+	bool init_sdl(bool USE_HAPTIC);
 	bool quit_sdl();
 
 	SDL_Joystick *joy;
+	SDL_Haptic *haptic;
 };
 
-bool HapticJoystick::init_sdl()
+bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 {
 	SDL_ClearError();
-	if (SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) != 0) {
+	if (SDL_Init(SDL_INIT_JOYSTICK) != 0) {
 		fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
 		atexit(SDL_Quit);
 		return (false);
@@ -86,20 +87,42 @@ bool HapticJoystick::init_sdl()
 			printf("Number of Buttons: %d\n", SDL_JoystickNumButtons(joy));
 			printf("Number of Balls: %d\n", SDL_JoystickNumBalls(joy));
 			printf("Number of Hats: %d\n", SDL_JoystickNumHats(joy));
-		} else {
+		}
+		else {
 			printf("Could not open Joystick 0\n");
 			return(false);
 		}
 	}
+	// see if user wants to init haptic and if joystick is capable of haptic
+	if (USE_HAPTIC && (SDL_JoystickIsHaptic(joy)==1)) { 
+		if (SDL_InitSubSystem(SDL_INIT_HAPTIC) != 0) {
+			fprintf(stderr, "Unable to initialize Haptic: %s\n", SDL_GetError());
+			atexit(SDL_Quit);
+			return (false);
+		} else {
+			printf("Haptic system is initialized");
+		};
+	} else {
+			printf("Joystick is not haptic");
+			return(false);
+		};
+		haptic = SDL_HapticOpenFromJoystick(joy);
+		if (haptic == NULL) return(false);
+
 	return(true);
 };
 
 bool HapticJoystick::quit_sdl()
 {
+	if (haptic != NULL) {
+		SDL_HapticClose(haptic);
+	}
+
 	if (SDL_JoystickGetAttached(joy)) {
 		SDL_JoystickClose(joy);
 	}
-	atexit(SDL_Quit);
+
+	SDL_Quit();
 	return(true);
 };
 
@@ -108,7 +131,8 @@ HapticJoystick joystick;
 #define LUA_INIT_SDL_COMMAND "simExtSDL_init"
 
 const int inArgs_INIT_SDL[] = {
-	0,
+	1,
+	sim_lua_arg_bool, 1,
 };
 
 void LUA_INIT_SDL_CALLBACK(SLuaCallBack *p)
@@ -116,11 +140,14 @@ void LUA_INIT_SDL_CALLBACK(SLuaCallBack *p)
 	p->outputArgCount = 0;
 	CLuaFunctionData D;
 	bool res = false;
+	bool useOfHaptic = false;
 	if (D.readDataFromLua(p, inArgs_INIT_SDL, inArgs_INIT_SDL[0], LUA_INIT_SDL_COMMAND))
 	{
-		// no input to work with
+		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
+		useOfHaptic = inData->at(0).boolData[0]; // the first argument
+		res = joystick.init_sdl(useOfHaptic);
 	}
-	res = joystick.init_sdl();
+	
 	D.pushOutData(CLuaFunctionDataItem(res));
 	D.writeDataToLua(p);
 };
@@ -257,7 +284,7 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer,int reservedInt)
 	simRegisterCustomLuaFunction(LUA_GETSENSORDATA_COMMAND,strConCat("number result,table data,number distance=",LUA_GETSENSORDATA_COMMAND,"(number sensorIndex,table_3 floatParameters,table_2 intParameters)"),&inArgs[0],LUA_GETSENSORDATA_CALLBACK);
 	
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_INIT_SDL, inArgs);
-	simRegisterCustomLuaFunction(LUA_INIT_SDL_COMMAND, strConCat("bool status=", LUA_INIT_SDL_COMMAND, "()"), &inArgs[0], LUA_INIT_SDL_CALLBACK);
+	simRegisterCustomLuaFunction(LUA_INIT_SDL_COMMAND, strConCat("bool status=", LUA_INIT_SDL_COMMAND, "(bool Haptic Initialization)"), &inArgs[0], LUA_INIT_SDL_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_QUIT_SDL, inArgs);
 	simRegisterCustomLuaFunction(LUA_QUIT_SDL_COMMAND, strConCat("bool status=", LUA_QUIT_SDL_COMMAND, "()"), &inArgs[0], LUA_QUIT_SDL_CALLBACK);
