@@ -77,7 +77,7 @@ public:
 	bool init_sdl(bool USE_HAPTIC);
 	bool quit_sdl();
 	bool refresh();
-
+	bool isPressed(int button);
 	SDL_Joystick *joy = NULL;
 	SDL_Haptic *haptic;
 	float StickX = - 9999;
@@ -177,7 +177,18 @@ bool HapticJoystick::refresh()
 		return true;
 	}
 	return false;
-};
+}
+
+bool HapticJoystick::isPressed(int button)
+{
+	SDL_ClearError();
+	SDL_JoystickUpdate();
+	if (joy == NULL) {
+		fprintf(stderr, "Unable to access joystick: %s\n", SDL_GetError());
+		return (false);
+	}
+	return(SDL_JoystickGetButton(joy, button));
+}
 
 HapticJoystick joystick;
 
@@ -269,6 +280,27 @@ void LUA_GET_JOYSTICK_COORDS_CALLBACK(SLuaCallBack* p)
 	D.writeDataToLua(p);
 }
 
+#define LUA_IS_BUTTON_PRESSED_COMMAND "simExtSDL_isButtonPressed"
+
+const int inArgs_IS_BUTTON_PRESSED[] = {
+	1,
+	sim_lua_arg_int, 1,
+};
+
+void LUA_IS_BUTTON_PRESSED_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	bool buttonState = false;
+	if (D.readDataFromLua(p, inArgs_IS_BUTTON_PRESSED, inArgs_IS_BUTTON_PRESSED[0], LUA_IS_BUTTON_PRESSED_COMMAND))
+	{
+		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
+		int button = inData->at(0).intData[0]; // the first argument
+		buttonState = joystick.isPressed(button);
+	}
+	D.pushOutData(CLuaFunctionDataItem(buttonState));
+	D.writeDataToLua(p);
+}
 #define LUA_GETSENSORDATA_COMMAND "simExtSkeleton_getSensorData" // the name of the new Lua command
 
 const int inArgs_GETSENSORDATA[] = { // Decide what kind of arguments we need
@@ -393,6 +425,10 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GET_JOYSTICK_COORDS, inArgs);
 	simRegisterCustomLuaFunction(LUA_GET_JOYSTICK_COORDS_COMMAND,
 		strConCat("table_4 leftThumbStickCoords=", LUA_GET_JOYSTICK_COORDS_COMMAND, "()"), &inArgs[0], LUA_GET_JOYSTICK_COORDS_CALLBACK);
+	
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_IS_BUTTON_PRESSED, inArgs);
+	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
+		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
 
 }
 
