@@ -80,7 +80,7 @@ public:
 	bool isPressed(int button);
 	int hatPosition();
 	bool createEffect(int dir_deg, int level_per);
-	//bool updateEffect();
+	bool updateEffect(int dir_deg, int level_per);
 	bool playEffect();
 	bool destroyEffect();
 	bool stopEffect();
@@ -247,6 +247,16 @@ bool HapticJoystick::createEffect(int dir_deg,int level_per)
 	}
 	
 	return true;
+}
+
+bool HapticJoystick::updateEffect(int dir_deg, int level_per)
+{
+	int level = level_per * 32767;
+	int dir = dir_deg * 100;
+	effect.constant.direction.dir[0] = dir;
+	effect.constant.level = level;
+	SDL_HapticUpdateEffect(haptic, effectID, &effect);
+		return false;
 }
 
 bool HapticJoystick::playEffect()
@@ -428,6 +438,31 @@ void LUA_CREATE_EFFECT_CALLBACK(SLuaCallBack* p)
 		int direction = inData->at(0).intData[0]; // the first argument
 		int level = inData->at(1).intData[0]; // the first argument
 		effectSuccess = joystick.createEffect(direction, level);
+	}
+	D.pushOutData(CLuaFunctionDataItem(effectSuccess));
+	D.writeDataToLua(p);
+}
+
+#define LUA_UPDATE_EFFECT_COMMAND "simExtSDL_updateEffect"
+
+const int inArgs_UPDATE_EFFECT[] = {
+	2,
+	sim_lua_arg_int, 1,
+	sim_lua_arg_int, 1,
+};
+
+void LUA_UPDATE_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	bool effectSuccess = false;
+	if (D.readDataFromLua(p, inArgs_UPDATE_EFFECT, inArgs_UPDATE_EFFECT[0], LUA_UPDATE_EFFECT_COMMAND))
+	{
+		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
+
+		int direction_update = inData->at(0).intData[0]; // the first argument
+		int level_update = inData->at(1).intData[0]; // the first argument
+		effectSuccess = joystick.updateEffect(direction_update, level_update);
 	}
 	D.pushOutData(CLuaFunctionDataItem(effectSuccess));
 	D.writeDataToLua(p);
@@ -622,7 +657,11 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_CREATE_EFFECT, inArgs);
 	simRegisterCustomLuaFunction(LUA_CREATE_EFFECT_COMMAND,
-		strConCat("boolen createEffect=", LUA_CREATE_EFFECT_COMMAND, "(int Polar_Coors)"), &inArgs[0], LUA_CREATE_EFFECT_CALLBACK);
+		strConCat("boolen createEffect=", LUA_CREATE_EFFECT_COMMAND, "(int Polar_Coors_deg, int level_percentage)"), &inArgs[0], LUA_CREATE_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_UPDATE_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_UPDATE_EFFECT_COMMAND,
+		strConCat("boolen updateEffect=", LUA_UPDATE_EFFECT_COMMAND, "(int Polar_Coors_deg, int level_percentage)"), &inArgs[0], LUA_UPDATE_EFFECT_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_EFFECT, inArgs);
 	simRegisterCustomLuaFunction(LUA_PLAY_EFFECT_COMMAND,
