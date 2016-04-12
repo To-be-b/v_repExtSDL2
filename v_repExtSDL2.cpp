@@ -78,12 +78,13 @@ public:
 	bool quit_sdl();
 	bool refresh();
 	bool isPressed(int button);
+	int hatPosition();
 	SDL_Joystick *joy = NULL;
 	SDL_Haptic *haptic;
-	float StickX = - 9999;
-	float StickY = - 9999;
-	float StickZ = -9999;
-	float StickT= -9999;
+	float StickX = - 99999;
+	float StickY = - 99999;
+	float StickZ = -99999;
+	float StickT= -99999;
 };
 
 bool HapticJoystick::init_sdl(bool USE_HAPTIC)
@@ -105,7 +106,7 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 			printf("Number of Hats: %d\n", SDL_JoystickNumHats(joy));
 		}
 		else {
-			printf("Could not open Joystick 0\n");
+			printf("Could not open Joystick 0\n", SDL_GetError());
 			return(false);
 		}
 	}
@@ -113,7 +114,7 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 	if (SDL_JoystickIsHaptic(joy) == 1) {
 		if (USE_HAPTIC) {
 			if (SDL_InitSubSystem(SDL_INIT_HAPTIC) != 0) {
-				fprintf(stderr, "Unable to initialize Haptic: %s\n", SDL_GetError());
+				fprintf(stderr, "Unable to initialize Haptic System: %s\n", SDL_GetError());
 				atexit(SDL_Quit);
 				return (false);
 			}else{
@@ -126,8 +127,10 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 		return(false);
 	};
 	haptic = SDL_HapticOpenFromJoystick(joy);
-	if (haptic == NULL) return(false);
-
+	if (haptic == NULL) {
+		fprintf(stderr, "Unable to initialize Haptic Joystick: %s\n", SDL_GetError());
+		return(false);
+	}
 	return(true);
 };
 
@@ -189,6 +192,23 @@ bool HapticJoystick::isPressed(int button)
 	}
 	return(SDL_JoystickGetButton(joy, button));
 }
+
+int HapticJoystick::hatPosition()
+{
+
+	SDL_ClearError();
+	SDL_JoystickUpdate();
+	if (joy == NULL) {
+		fprintf(stderr, "Unable to access joystick: %s\n", SDL_GetError());
+		return (-99999);
+	}
+	else {
+
+		return(SDL_JoystickGetHat(joy, 0));
+	}
+}
+
+
 
 HapticJoystick joystick;
 
@@ -301,6 +321,25 @@ void LUA_IS_BUTTON_PRESSED_CALLBACK(SLuaCallBack* p)
 	D.pushOutData(CLuaFunctionDataItem(buttonState));
 	D.writeDataToLua(p);
 }
+
+#define LUA_HAT_POSITION_COMMAND "simExtSDL_hatPosition"
+
+const int inArgs_HAT_POSITION[] = {
+	0,
+};
+
+void LUA_HAT_POSITION_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_HAT_POSITION, inArgs_HAT_POSITION[0], LUA_HAT_POSITION_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.hatPosition()));
+	D.writeDataToLua(p);
+}
+
 #define LUA_GETSENSORDATA_COMMAND "simExtSkeleton_getSensorData" // the name of the new Lua command
 
 const int inArgs_GETSENSORDATA[] = { // Decide what kind of arguments we need
@@ -429,6 +468,10 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_IS_BUTTON_PRESSED, inArgs);
 	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
 		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_HAT_POSITION, inArgs);
+	simRegisterCustomLuaFunction(LUA_HAT_POSITION_COMMAND,
+		strConCat("integer hatPosition=", LUA_HAT_POSITION_COMMAND, "()"), &inArgs[0], LUA_HAT_POSITION_CALLBACK);
 
 }
 
