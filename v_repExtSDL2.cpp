@@ -79,8 +79,17 @@ public:
 	bool refresh();
 	bool isPressed(int button);
 	int hatPosition();
+	bool createEffect(int dir_deg, int level_per);
+	//bool updateEffect();
+	bool playEffect();
+	bool destroyEffect();
+	bool stopEffect();
+
 	SDL_Joystick *joy = NULL;
 	SDL_Haptic *haptic;
+	SDL_HapticEffect effect;
+
+	int effectID;
 	float StickX = - 99999;
 	float StickY = - 99999;
 	float StickZ = -99999;
@@ -126,7 +135,7 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 		printf("Joystick is not haptic \n");
 		return(false);
 	};
-	haptic = SDL_HapticOpenFromJoystick(joy);
+	haptic = SDL_HapticOpen(0); // SDL_HapticOpenFromJoystick(joy);
 	if (haptic == NULL) {
 		fprintf(stderr, "Unable to initialize Haptic Joystick: %s\n", SDL_GetError());
 		return(false);
@@ -206,6 +215,65 @@ int HapticJoystick::hatPosition()
 
 		return(SDL_JoystickGetHat(joy, 0));
 	}
+}
+
+bool HapticJoystick::createEffect(int dir_deg,int level_per)
+{
+	SDL_ClearError();
+	if (haptic == NULL) {
+		fprintf(stderr," No Haptic Joystick initialized : %s\n");
+		return(false);
+	}
+	if ((SDL_HapticQuery(haptic) & SDL_HAPTIC_CONSTANT) == 0) {
+		SDL_HapticClose(haptic); // No sine effect
+		fprintf(stderr, "Joystick does not support that effect");
+		return false;
+	}
+	int level = level_per * 32767;
+	int dir = dir_deg * 100;
+	memset(&effect, 0, sizeof(SDL_HapticEffect));
+	effect.type = SDL_HAPTIC_CONSTANT;
+	effect.constant.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
+	effect.constant.direction.dir[0] = dir; 
+	effect.constant.level = level;
+	effect.constant.length = 100;
+
+
+	// Upload the effect
+	effectID = SDL_HapticNewEffect(haptic, &effect);
+	if (effectID < 0) {
+		fprintf(stderr, "Effect can not be uploaded: %s\n", SDL_GetError());
+		return false;
+	}
+	
+	return true;
+}
+
+bool HapticJoystick::playEffect()
+{
+	SDL_ClearError();
+	if (SDL_HapticRunEffect(haptic, effectID, SDL_HAPTIC_INFINITY) != 0) // last integer may be set to SDL_HAPTIC_INFINITY
+	{
+		fprintf(stderr, "Effect can not be played: %s\n", SDL_GetError());
+		return(false);
+	}
+	return true;
+}
+
+bool HapticJoystick::destroyEffect()
+{
+	SDL_HapticDestroyEffect(haptic, effectID);
+	return true;
+}
+
+bool HapticJoystick::stopEffect()
+{
+	SDL_ClearError();
+	if (SDL_HapticStopEffect(haptic, effectID) != 0) {
+		fprintf(stderr, "Effect can not be stopped: %s\n", SDL_GetError());
+		return false;
+	}
+	return true;
 }
 
 
@@ -337,6 +405,85 @@ void LUA_HAT_POSITION_CALLBACK(SLuaCallBack* p)
 		// no input
 	}
 	D.pushOutData(CLuaFunctionDataItem(joystick.hatPosition()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_CREATE_EFFECT_COMMAND "simExtSDL_createEffect"
+
+const int inArgs_CREATE_EFFECT[] = {
+	2,
+	sim_lua_arg_int, 1, 
+	sim_lua_arg_int, 1,
+};
+
+void LUA_CREATE_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	bool effectSuccess = false;
+	if (D.readDataFromLua(p, inArgs_CREATE_EFFECT, inArgs_CREATE_EFFECT[0], LUA_CREATE_EFFECT_COMMAND))
+	{
+		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
+
+		int direction = inData->at(0).intData[0]; // the first argument
+		int level = inData->at(1).intData[0]; // the first argument
+		effectSuccess = joystick.createEffect(direction, level);
+	}
+	D.pushOutData(CLuaFunctionDataItem(effectSuccess));
+	D.writeDataToLua(p);
+}
+
+#define LUA_PLAY_EFFECT_COMMAND "simExtSDL_playEffect"
+
+const int inArgs_PLAY_EFFECT[] = {
+	0,
+};
+
+void LUA_PLAY_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_PLAY_EFFECT, inArgs_PLAY_EFFECT[0], LUA_PLAY_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.playEffect()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_DESTROY_EFFECT_COMMAND "simExtSDL_destroyEffect"
+
+const int inArgs_DESTROY_EFFECT[] = {
+	0,
+};
+
+void LUA_DESTROY_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_DESTROY_EFFECT, inArgs_DESTROY_EFFECT[0], LUA_DESTROY_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.destroyEffect()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_STOP_EFFECT_COMMAND "simExtSDL_stopEffect"
+
+const int inArgs_STOP_EFFECT[] = {
+	0,
+};
+
+void LUA_STOP_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_STOP_EFFECT, inArgs_STOP_EFFECT[0], LUA_STOP_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.stopEffect()));
 	D.writeDataToLua(p);
 }
 
@@ -473,6 +620,24 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	simRegisterCustomLuaFunction(LUA_HAT_POSITION_COMMAND,
 		strConCat("integer hatPosition=", LUA_HAT_POSITION_COMMAND, "()"), &inArgs[0], LUA_HAT_POSITION_CALLBACK);
 
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_CREATE_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_CREATE_EFFECT_COMMAND,
+		strConCat("boolen createEffect=", LUA_CREATE_EFFECT_COMMAND, "(int Polar_Coors)"), &inArgs[0], LUA_CREATE_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_PLAY_EFFECT_COMMAND,
+		strConCat("boolen playEffect=", LUA_PLAY_EFFECT_COMMAND, "()"), &inArgs[0], LUA_PLAY_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_STOP_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_STOP_EFFECT_COMMAND,
+		strConCat("boolen stopEffect=", LUA_STOP_EFFECT_COMMAND, "()"), &inArgs[0], LUA_STOP_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_DESTROY_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_DESTROY_EFFECT_COMMAND,
+		strConCat("boolen destroyEffect=", LUA_DESTROY_EFFECT_COMMAND, "()"), &inArgs[0], LUA_DESTROY_EFFECT_CALLBACK);
+	
+	return 1;
+
 }
 
 // This is the plugin end routine (called just once, when V-REP is ending, i.e. releasing this plugin):
@@ -593,3 +758,27 @@ VREP_DLLEXPORT void* v_repMessage(int message, int* auxiliaryData, void* customD
 	simSetIntegerParameter(sim_intparam_error_report_mode, errorModeSaved); // restore previous settings
 	return(retVal);
 }
+
+/*--------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------*/
+////Get initialize rumble
+//if (SDL_HapticRumbleInit(haptic) < 0)
+//{
+//	printf("Warning: Unable to initialize rumble! SDL Error: %s\n", SDL_GetError());
+//}
+
+//memset(&effect, 0, sizeof(SDL_HapticEffect)); // 0 is safe default
+//effect.type = SDL_HAPTIC_SINE;
+//effect.periodic.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
+//effect.periodic.direction.dir[0] = 18000; // Force comes from south
+//effect.periodic.period = 1000; // 1000 ms
+//effect.periodic.magnitude = 20000; // 20000/32767 strength
+//effect.periodic.length = 5000; // 5 seconds long
+//effect.periodic.attack_length = 1000; // Takes 1 second to get max strength
+//effect.periodic.fade_length = 1000; // Takes 1 second to fade away
+
+//// Play rumble at 75 % strenght for 500 milliseconds
+//	if (SDL_HapticRumblePlay(haptic, 1, dir) != 0)
+//	{
+//		printf("Warning: Unable to play rumble! %s\n", SDL_GetError());
+//	}
