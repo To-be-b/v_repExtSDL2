@@ -88,6 +88,7 @@ public:
 	SDL_Joystick *joy = NULL;
 	SDL_Haptic *haptic;
 	SDL_HapticEffect effect;
+	SDL_Event e;
 
 	int effectID;
 	float StickX = - 99999;
@@ -115,7 +116,7 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 			printf("Number of Hats: %d\n", SDL_JoystickNumHats(joy));
 		}
 		else {
-			printf("Could not open Joystick 0\n", SDL_GetError());
+			fprintf(stderr, "Could not open Joystick 0: %s\n", SDL_GetError());
 			return(false);
 		}
 	}
@@ -221,7 +222,7 @@ bool HapticJoystick::createEffect(int dir_deg,int level_per)
 {
 	SDL_ClearError();
 	if (haptic == NULL) {
-		fprintf(stderr," No Haptic Joystick initialized : %s\n");
+		fprintf(stderr,"No Haptic Joystick initialized : %s\n", SDL_GetError());
 		return(false);
 	}
 	if ((SDL_HapticQuery(haptic) & SDL_HAPTIC_CONSTANT) == 0) {
@@ -236,7 +237,7 @@ bool HapticJoystick::createEffect(int dir_deg,int level_per)
 	effect.constant.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
 	effect.constant.direction.dir[0] = dir; 
 	effect.constant.level = level;
-	effect.constant.length = 100;
+	effect.constant.length = 0; //evtl. muss dieser Wert auch größer sein
 
 
 	// Upload the effect
