@@ -80,6 +80,8 @@ public:
 	bool isPressed(int button);
 	int hatPosition();
 	bool createEffect(int dir_deg, int level_per);
+	bool createRumbleEffect();
+	bool playRumbleEffect(int strength, int duration);
 	bool updateEffect(int dir_deg, int level_per);
 	bool playEffect();
 	bool destroyEffect();
@@ -248,6 +250,33 @@ bool HapticJoystick::createEffect(int dir_deg,int level_per)
 	}
 	
 	return true;
+}
+
+bool HapticJoystick::createRumbleEffect() 
+{
+	SDL_ClearError();
+	if (haptic == NULL) {
+		fprintf(stderr, "No Haptic Joystick initialized : %s\n", SDL_GetError());
+		return(false);
+	}
+	if (SDL_HapticRumbleSupported(haptic)) {
+		if (SDL_HapticRumbleInit(haptic) != 0) {
+			fprintf(stderr, "Failed to initialize rumble : %s\n", SDL_GetError());
+		}
+	}else{
+		fprintf(stderr, "Rumble not supported : %s\n", SDL_GetError());
+	}
+	return(true);
+}
+
+bool HapticJoystick::playRumbleEffect(int strength, int duration)
+{
+	SDL_ClearError();
+	if (SDL_HapticRumblePlay(haptic, strength, duration) != 0) {
+		fprintf(stderr, "Error, rumble could not be played : %s\n", SDL_GetError());
+		return(false);
+	}
+	return(true);
 }
 
 bool HapticJoystick::updateEffect(int dir_deg, int level_per)
@@ -523,6 +552,49 @@ void LUA_STOP_EFFECT_CALLBACK(SLuaCallBack* p)
 	D.writeDataToLua(p);
 }
 
+#define LUA_INIT_RUMBLE_COMMAND "simExtSDL_initRumble"
+
+const int inArgs_INIT_RUMBLE[] = {
+	0,
+};
+
+void LUA_INIT_RUMBLE_CALLBACK(SLuaCallBack* p) {
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+
+	if (D.readDataFromLua(p, inArgs_INIT_RUMBLE, inArgs_INIT_RUMBLE[0], LUA_INIT_RUMBLE_COMMAND)) {
+		// no Input to work with
+	}
+	
+	D.pushOutData(CLuaFunctionDataItem(joystick.createRumbleEffect()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_PLAY_RUMBLE_COMMAND "simExtSDL_playRumble"
+
+const int inArgs_PLAY_RUMBLE[] = {
+	2,
+	sim_lua_arg_int,1,
+	sim_lua_arg_int,1,
+};
+
+void LUA_PLAY_RUMBLE_CALLBACK(SLuaCallBack* p) {
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	bool rumbleSuccess = false;
+	if (D.readDataFromLua(p, inArgs_PLAY_RUMBLE, inArgs_PLAY_RUMBLE[0], LUA_PLAY_RUMBLE_COMMAND)) {
+		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
+
+		int strength = inData->at(0).intData[0]; // the first argument
+		int duration = inData->at(1).intData[0]; // the second argument
+
+		rumbleSuccess = joystick.playRumbleEffect(strength, duration);
+	}
+
+	D.pushOutData(CLuaFunctionDataItem(rumbleSuccess));
+	D.writeDataToLua(p);
+}
+
 #define LUA_GETSENSORDATA_COMMAND "simExtSkeleton_getSensorData" // the name of the new Lua command
 
 const int inArgs_GETSENSORDATA[] = { // Decide what kind of arguments we need
@@ -675,7 +747,15 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_DESTROY_EFFECT, inArgs);
 	simRegisterCustomLuaFunction(LUA_DESTROY_EFFECT_COMMAND,
 		strConCat("boolen destroyEffect=", LUA_DESTROY_EFFECT_COMMAND, "()"), &inArgs[0], LUA_DESTROY_EFFECT_CALLBACK);
-	
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_INIT_RUMBLE, inArgs);
+	simRegisterCustomLuaFunction(LUA_INIT_RUMBLE_COMMAND,
+		strConCat("boolen initRumble=", LUA_INIT_RUMBLE_COMMAND, "()"), &inArgs[0], LUA_INIT_RUMBLE_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_RUMBLE, inArgs);
+	simRegisterCustomLuaFunction(LUA_PLAY_RUMBLE_COMMAND,
+		strConCat("boolen initRumble=", LUA_PLAY_RUMBLE_COMMAND, "(int strengt(0-1), int duration[ms])"), &inArgs[0], LUA_PLAY_RUMBLE_CALLBACK);
+
 	return 1;
 
 }
