@@ -79,20 +79,27 @@ public:
 	bool refresh();
 	bool isPressed(int button);
 	int hatPosition();
-	bool createEffect(int dir_deg, int level_per);
+	bool createDirectionalEffect(int dir_deg, int level);
+	bool createGroovesEffect(int dir_deg, int level, int length);
 	bool createRumbleEffect();
 	bool playRumbleEffect(int strength, int duration);
-	bool updateEffect(int dir_deg, int level_per);
-	bool playEffect();
-	bool destroyEffect();
-	bool stopEffect();
+	bool updateDirEffect(int dir_deg, int level);
+	bool updateGroovesEffect(int dir_deg, int level, int length);
+	bool playDirEffect();
+	bool playGroovesEffect();
+	bool destroyDirEffect();
+	bool destroyGroovesEffect();
+	bool stopDirEffect();
+	bool stopGroovesEffect();
 
 	SDL_Joystick *joy = NULL;
 	SDL_Haptic *haptic;
-	SDL_HapticEffect effect;
+	SDL_HapticEffect effectDir;
+	SDL_HapticEffect effectGrooves;
 	SDL_Event e;
 
-	int effectID;
+	int effectIDDir;
+	int effectIDGrooves;
 	float StickX = - 99999;
 	float StickY = - 99999;
 	float StickZ = -99999;
@@ -145,13 +152,19 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 	}
 	return(true);
 };
-
 bool HapticJoystick::quit_sdl()
 {
 	if (haptic != NULL) {
 		SDL_HapticClose(haptic);
 		haptic = NULL;
-		printf("Haptic closed \n");
+		if (effectIDDir > 0) {
+			SDL_HapticDestroyEffect(haptic, effectIDDir);
+		}
+		else if (effectIDGrooves > 0) {
+			SDL_HapticDestroyEffect(haptic, effectIDGrooves);
+		}
+	
+	printf			("Haptic closed \n");
 	}
 
 	if (SDL_JoystickGetAttached(joy)) {
@@ -164,6 +177,7 @@ bool HapticJoystick::quit_sdl()
 	printf("SDL closed \n");
 	return(true);
 }
+
 bool HapticJoystick::refresh()
 {
 	SDL_ClearError();
@@ -202,9 +216,11 @@ bool HapticJoystick::isPressed(int button)
 		fprintf(stderr, "Unable to access joystick: %s\n", SDL_GetError());
 		return (false);
 	}
-	return(SDL_JoystickGetButton(joy, button));
+	if (SDL_JoystickGetButton(joy, button) == 1) {
+		return(true);
+	}
+	return(false);
 }
-
 int HapticJoystick::hatPosition()
 {
 
@@ -220,7 +236,7 @@ int HapticJoystick::hatPosition()
 	}
 }
 
-bool HapticJoystick::createEffect(int dir_deg,int level_per)
+bool HapticJoystick::createDirectionalEffect(int dir_deg,int level)
 {
 	SDL_ClearError();
 	if (haptic == NULL) {
@@ -232,26 +248,55 @@ bool HapticJoystick::createEffect(int dir_deg,int level_per)
 		fprintf(stderr, "Joystick does not support that effect");
 		return false;
 	}
-	int level = level_per * 32767;
 	int dir = dir_deg * 100;
-	memset(&effect, 0, sizeof(SDL_HapticEffect));
-	effect.type = SDL_HAPTIC_CONSTANT;
-	effect.constant.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
-	effect.constant.direction.dir[0] = dir; 
-	effect.constant.level = level;
-	effect.constant.length = 0; //evtl. muss dieser Wert auch größer sein
-
-
+		memset(&effectDir, 0, sizeof(SDL_HapticEffect));
+		effectDir.type = SDL_HAPTIC_CONSTANT;
+		effectDir.constant.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
+		effectDir.constant.direction.dir[0] = dir;
+		effectDir.constant.level = level;
+		effectDir.constant.length = 5; //VERSTEHEN DIESES WERTS
+		printf("Directional force with magnitude of: %d and direction: %d ° \n", level, dir_deg);
 	// Upload the effect
-	effectID = SDL_HapticNewEffect(haptic, &effect);
-	if (effectID < 0) {
+	effectIDDir = SDL_HapticNewEffect(haptic, &effectDir);
+	if (effectIDDir < 0) {
 		fprintf(stderr, "Effect can not be uploaded: %s\n", SDL_GetError());
 		return false;
 	}
 	
 	return true;
 }
+bool HapticJoystick::createGroovesEffect(int dir_deg, int level, int length)
+{
+	SDL_ClearError();
+	if (haptic == NULL) {
+		fprintf(stderr, "No Haptic Joystick initialized : %s\n", SDL_GetError());
+		return(false);
+	}
 
+	int dir = dir_deg * 100;
+		if ((SDL_HapticQuery(haptic) & SDL_HAPTIC_RAMP) == 0) {
+			SDL_HapticClose(haptic);
+			fprintf(stderr, "Joystick does not support that effect \n");
+			return false;
+		}
+		memset(&effectGrooves, 0, sizeof(SDL_HapticEffect));
+		effectGrooves.type = SDL_HAPTIC_RAMP;
+		effectGrooves.ramp.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
+		effectGrooves.ramp.direction.dir[0] = dir;
+		effectGrooves.ramp.length = length;
+		effectGrooves.ramp.start = level;
+		effectGrooves.ramp.end = level;
+		printf("Grooves with magnitude of: %d,length: %d ms and direction: %d ° \n", level, length, dir_deg);
+
+	// Upload the effect
+	effectIDGrooves = SDL_HapticNewEffect(haptic, &effectGrooves);
+	if (effectIDGrooves < 0) {
+		fprintf(stderr, "Effect can not be uploaded: %s\n", SDL_GetError());
+		return false;
+	}
+
+	return true;
+}
 bool HapticJoystick::createRumbleEffect() 
 {
 	SDL_ClearError();
@@ -268,6 +313,44 @@ bool HapticJoystick::createRumbleEffect()
 	}
 	return(true);
 }
+bool HapticJoystick::updateDirEffect(int dir_deg, int level)
+{
+	SDL_ClearError();
+	int dir = dir_deg * 100;
+
+		effectDir.constant.direction.dir[0] = dir;
+		effectDir.constant.level = level;
+
+		effectDir.ramp.direction.dir[0] = dir;
+		/*effect.ramp.start = level;
+		effect.ramp.end = level;*/
+		effectDir.constant.level = level;
+	
+		if (SDL_HapticUpdateEffect(haptic, effectIDDir, &effectDir) != 0) {
+			fprintf(stderr, "Effect update failed : %s\n", SDL_GetError());
+			return(false);
+	}
+	return(true);
+}
+
+bool HapticJoystick::updateGroovesEffect(int dir_deg, int level, int length)
+{
+	SDL_ClearError();
+	int dir = dir_deg * 100;
+
+
+	effectGrooves.ramp.direction.dir[0] = dir;
+	/*effect.ramp.start = level;
+	effect.ramp.end = level;*/
+	effectGrooves.constant.level = level;
+	effectGrooves.ramp.length = length;
+
+	if (SDL_HapticUpdateEffect(haptic, effectIDGrooves, &effectGrooves) != 0) {
+		fprintf(stderr, "Effect update failed : %s\n", SDL_GetError());
+		return(false);
+	}
+	return(true);
+}
 
 bool HapticJoystick::playRumbleEffect(int strength, int duration)
 {
@@ -278,21 +361,10 @@ bool HapticJoystick::playRumbleEffect(int strength, int duration)
 	}
 	return(true);
 }
-
-bool HapticJoystick::updateEffect(int dir_deg, int level_per)
-{
-	int level = level_per * 32767;
-	int dir = dir_deg * 100;
-	effect.constant.direction.dir[0] = dir;
-	effect.constant.level = level;
-	SDL_HapticUpdateEffect(haptic, effectID, &effect);
-		return false;
-}
-
-bool HapticJoystick::playEffect()
+bool HapticJoystick::playDirEffect()
 {
 	SDL_ClearError();
-	if (SDL_HapticRunEffect(haptic, effectID, SDL_HAPTIC_INFINITY) != 0) // last integer may be set to SDL_HAPTIC_INFINITY
+	if (SDL_HapticRunEffect(haptic, effectIDDir, SDL_HAPTIC_INFINITY) != 0) // last integer may be set to SDL_HAPTIC_INFINITY
 	{
 		fprintf(stderr, "Effect can not be played: %s\n", SDL_GetError());
 		return(false);
@@ -300,24 +372,47 @@ bool HapticJoystick::playEffect()
 	return true;
 }
 
-bool HapticJoystick::destroyEffect()
-{
-	SDL_HapticDestroyEffect(haptic, effectID);
-	return true;
-}
-
-bool HapticJoystick::stopEffect()
+bool HapticJoystick::playGroovesEffect()
 {
 	SDL_ClearError();
-	if (SDL_HapticStopEffect(haptic, effectID) != 0) {
+	if (SDL_HapticRunEffect(haptic, effectIDGrooves, SDL_HAPTIC_INFINITY) != 0) // last integer may be set to SDL_HAPTIC_INFINITY
+	{
+		fprintf(stderr, "Effect can not be played: %s\n", SDL_GetError());
+		return(false);
+	}
+	return true;
+}
+bool HapticJoystick::stopDirEffect()
+{
+	SDL_ClearError();
+	if (SDL_HapticStopEffect(haptic, effectIDDir) != 0) {
 		fprintf(stderr, "Effect can not be stopped: %s\n", SDL_GetError());
 		return false;
 	}
 	return true;
 }
 
+bool HapticJoystick::stopGroovesEffect()
+{
+	SDL_ClearError();
+	if (SDL_HapticStopEffect(haptic, effectIDGrooves) != 0) {
+		fprintf(stderr, "Effect can not be stopped: %s\n", SDL_GetError());
+		return false;
+	}
+	return true;
+}
 
+bool HapticJoystick::destroyDirEffect()
+{
+	SDL_HapticDestroyEffect(haptic, effectIDDir);
+	return true;
+}
 
+bool HapticJoystick::destroyGroovesEffect()
+{
+	SDL_HapticDestroyEffect(haptic, effectIDGrooves);
+	return true;
+}
 HapticJoystick joystick;
 
 #define LUA_INIT_SDL_COMMAND "simExtSDL_init"
@@ -448,107 +543,215 @@ void LUA_HAT_POSITION_CALLBACK(SLuaCallBack* p)
 	D.writeDataToLua(p);
 }
 
-#define LUA_CREATE_EFFECT_COMMAND "simExtSDL_createEffect"
+#define LUA_CREATE_DIR_EFFECT_COMMAND "simExtSDL_createDirEffect"
 
-const int inArgs_CREATE_EFFECT[] = {
+const int inArgs_CREATE_DIR_EFFECT[] = {
 	2,
 	sim_lua_arg_int, 1, 
 	sim_lua_arg_int, 1,
 };
 
-void LUA_CREATE_EFFECT_CALLBACK(SLuaCallBack* p)
+void LUA_CREATE_DIR_EFFECT_CALLBACK(SLuaCallBack* p)
 {
 	p->outputArgCount = 1;
 	CLuaFunctionData D;
 	bool effectSuccess = false;
-	if (D.readDataFromLua(p, inArgs_CREATE_EFFECT, inArgs_CREATE_EFFECT[0], LUA_CREATE_EFFECT_COMMAND))
+	if (D.readDataFromLua(p, inArgs_CREATE_DIR_EFFECT, inArgs_CREATE_DIR_EFFECT[0], LUA_CREATE_DIR_EFFECT_COMMAND))
 	{
 		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
 
 		int direction = inData->at(0).intData[0]; // the first argument
-		int level = inData->at(1).intData[0]; // the first argument
-		effectSuccess = joystick.createEffect(direction, level);
+		int level = inData->at(1).intData[0];
+		effectSuccess = joystick.createDirectionalEffect(direction, level);
 	}
 	D.pushOutData(CLuaFunctionDataItem(effectSuccess));
 	D.writeDataToLua(p);
 }
 
-#define LUA_UPDATE_EFFECT_COMMAND "simExtSDL_updateEffect"
+#define LUA_CREATE_GROOVES_EFFECT_COMMAND "simExtSDL_createGroovesEffect"
 
-const int inArgs_UPDATE_EFFECT[] = {
+const int inArgs_CREATE_GROOVES_EFFECT[] = {
+	3,
+	sim_lua_arg_int, 1,
+	sim_lua_arg_int, 1,
+	sim_lua_arg_int, 1,
+};
+
+void LUA_CREATE_GROOVES_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	bool effectSuccess = false;
+	if (D.readDataFromLua(p, inArgs_CREATE_GROOVES_EFFECT, inArgs_CREATE_GROOVES_EFFECT[0], LUA_CREATE_GROOVES_EFFECT_COMMAND))
+	{
+		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
+
+		int direction = inData->at(0).intData[0]; // the first argument
+		int level = inData->at(1).intData[0];
+		int length = inData->at(2).intData[0];
+		effectSuccess = joystick.createGroovesEffect(direction, level, length);
+	}
+	D.pushOutData(CLuaFunctionDataItem(effectSuccess));
+	D.writeDataToLua(p);
+}
+
+#define LUA_UPDATE_DIR_EFFECT_COMMAND "simExtSDL_updateDirEffect"
+
+const int inArgs_UPDATE_DIR_EFFECT[] = {
 	2,
 	sim_lua_arg_int, 1,
 	sim_lua_arg_int, 1,
 };
 
-void LUA_UPDATE_EFFECT_CALLBACK(SLuaCallBack* p)
+void LUA_UPDATE_DIR_EFFECT_CALLBACK(SLuaCallBack* p)
 {
 	p->outputArgCount = 1;
 	CLuaFunctionData D;
 	bool effectSuccess = false;
-	if (D.readDataFromLua(p, inArgs_UPDATE_EFFECT, inArgs_UPDATE_EFFECT[0], LUA_UPDATE_EFFECT_COMMAND))
+	if (D.readDataFromLua(p, inArgs_UPDATE_DIR_EFFECT, inArgs_UPDATE_DIR_EFFECT[0], LUA_UPDATE_DIR_EFFECT_COMMAND))
 	{
 		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
 
 		int direction_update = inData->at(0).intData[0]; // the first argument
 		int level_update = inData->at(1).intData[0]; // the first argument
-		effectSuccess = joystick.updateEffect(direction_update, level_update);
+		effectSuccess = joystick.updateDirEffect(direction_update, level_update);
 	}
 	D.pushOutData(CLuaFunctionDataItem(effectSuccess));
 	D.writeDataToLua(p);
 }
 
-#define LUA_PLAY_EFFECT_COMMAND "simExtSDL_playEffect"
+#define LUA_UPDATE_GROOVES_EFFECT_COMMAND "simExtSDL_updateGroovesEffect"
 
-const int inArgs_PLAY_EFFECT[] = {
-	0,
+const int inArgs_UPDATE_GROOVES_EFFECT[] = {
+	3,
+	sim_lua_arg_int, 1,
+	sim_lua_arg_int, 1,
+	sim_lua_arg_int, 1,
 };
 
-void LUA_PLAY_EFFECT_CALLBACK(SLuaCallBack* p)
+void LUA_UPDATE_GROOVES_EFFECT_CALLBACK(SLuaCallBack* p)
 {
 	p->outputArgCount = 1;
 	CLuaFunctionData D;
-	if (D.readDataFromLua(p, inArgs_PLAY_EFFECT, inArgs_PLAY_EFFECT[0], LUA_PLAY_EFFECT_COMMAND))
+	bool effectSuccess = false;
+	if (D.readDataFromLua(p, inArgs_UPDATE_GROOVES_EFFECT, inArgs_UPDATE_GROOVES_EFFECT[0], LUA_UPDATE_GROOVES_EFFECT_COMMAND))
 	{
-		// no input
+		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
+
+		int direction_update = inData->at(0).intData[0]; // the first argument
+		int level_update = inData->at(1).intData[0]; 
+		int length_update = inData->at(2).intData[0];
+		effectSuccess = joystick.updateGroovesEffect(direction_update, level_update, length_update);
 	}
-	D.pushOutData(CLuaFunctionDataItem(joystick.playEffect()));
+	D.pushOutData(CLuaFunctionDataItem(effectSuccess));
 	D.writeDataToLua(p);
 }
 
-#define LUA_DESTROY_EFFECT_COMMAND "simExtSDL_destroyEffect"
+#define LUA_PLAY_DIR_EFFECT_COMMAND "simExtSDL_playDirEffect"
 
-const int inArgs_DESTROY_EFFECT[] = {
+const int inArgs_PLAY_DIR_EFFECT[] = {
 	0,
 };
 
-void LUA_DESTROY_EFFECT_CALLBACK(SLuaCallBack* p)
+void LUA_PLAY_DIR_EFFECT_CALLBACK(SLuaCallBack* p)
 {
 	p->outputArgCount = 1;
 	CLuaFunctionData D;
-	if (D.readDataFromLua(p, inArgs_DESTROY_EFFECT, inArgs_DESTROY_EFFECT[0], LUA_DESTROY_EFFECT_COMMAND))
+	if (D.readDataFromLua(p, inArgs_PLAY_DIR_EFFECT, inArgs_PLAY_DIR_EFFECT[0], LUA_PLAY_DIR_EFFECT_COMMAND))
 	{
 		// no input
 	}
-	D.pushOutData(CLuaFunctionDataItem(joystick.destroyEffect()));
+	D.pushOutData(CLuaFunctionDataItem(joystick.playDirEffect()));
 	D.writeDataToLua(p);
 }
 
-#define LUA_STOP_EFFECT_COMMAND "simExtSDL_stopEffect"
+#define LUA_PLAY_GROOVES_EFFECT_COMMAND "simExtSDL_playGroovesEffect"
 
-const int inArgs_STOP_EFFECT[] = {
+const int inArgs_PLAY_GROOVES_EFFECT[] = {
 	0,
 };
 
-void LUA_STOP_EFFECT_CALLBACK(SLuaCallBack* p)
+void LUA_PLAY_GROOVES_EFFECT_CALLBACK(SLuaCallBack* p)
 {
 	p->outputArgCount = 1;
 	CLuaFunctionData D;
-	if (D.readDataFromLua(p, inArgs_STOP_EFFECT, inArgs_STOP_EFFECT[0], LUA_STOP_EFFECT_COMMAND))
+	if (D.readDataFromLua(p, inArgs_PLAY_GROOVES_EFFECT, inArgs_PLAY_GROOVES_EFFECT[0], LUA_PLAY_GROOVES_EFFECT_COMMAND))
 	{
 		// no input
 	}
-	D.pushOutData(CLuaFunctionDataItem(joystick.stopEffect()));
+	D.pushOutData(CLuaFunctionDataItem(joystick.playGroovesEffect()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_DESTROY_DIR_EFFECT_COMMAND "simExtSDL_destroyDirEffect"
+
+const int inArgs_DESTROY_DIR_EFFECT[] = {
+	0,
+};
+
+void LUA_DESTROY_DIR_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_DESTROY_DIR_EFFECT, inArgs_DESTROY_DIR_EFFECT[0], LUA_DESTROY_DIR_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.destroyDirEffect()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_DESTROY_GROOVES_EFFECT_COMMAND "simExtSDL_destroyGroovesEffect"
+
+const int inArgs_DESTROY_GROOVES_EFFECT[] = {
+	0,
+};
+
+void LUA_DESTROY_GROOVES_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_DESTROY_GROOVES_EFFECT, inArgs_DESTROY_GROOVES_EFFECT[0], LUA_DESTROY_GROOVES_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.destroyGroovesEffect()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_STOP_DIR_EFFECT_COMMAND "simExtSDL_stopDirEffect"
+
+const int inArgs_STOP_DIR_EFFECT[] = {
+	0,
+};
+
+void LUA_STOP_DIR_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_STOP_DIR_EFFECT, inArgs_STOP_DIR_EFFECT[0], LUA_STOP_DIR_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.stopDirEffect()));
+	D.writeDataToLua(p);
+}
+
+#define LUA_STOP_GROOVES_EFFECT_COMMAND "simExtSDL_stopGroovesEffect"
+
+const int inArgs_STOP_GROOVES_EFFECT[] = {
+	0,
+};
+
+void LUA_STOP_GROOVES_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_STOP_GROOVES_EFFECT, inArgs_STOP_GROOVES_EFFECT[0], LUA_STOP_GROOVES_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.stopGroovesEffect()));
 	D.writeDataToLua(p);
 }
 
@@ -728,25 +931,45 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	simRegisterCustomLuaFunction(LUA_HAT_POSITION_COMMAND,
 		strConCat("integer hatPosition=", LUA_HAT_POSITION_COMMAND, "()"), &inArgs[0], LUA_HAT_POSITION_CALLBACK);
 
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_CREATE_EFFECT, inArgs);
-	simRegisterCustomLuaFunction(LUA_CREATE_EFFECT_COMMAND,
-		strConCat("boolen createEffect=", LUA_CREATE_EFFECT_COMMAND, "(int Polar_Coors_deg, int level_percentage)"), &inArgs[0], LUA_CREATE_EFFECT_CALLBACK);
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_CREATE_DIR_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_CREATE_DIR_EFFECT_COMMAND,
+		strConCat("boolen createDirEffect=", LUA_CREATE_DIR_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767)"), &inArgs[0], LUA_CREATE_DIR_EFFECT_CALLBACK);
 
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_UPDATE_EFFECT, inArgs);
-	simRegisterCustomLuaFunction(LUA_UPDATE_EFFECT_COMMAND,
-		strConCat("boolen updateEffect=", LUA_UPDATE_EFFECT_COMMAND, "(int Polar_Coors_deg, int level_percentage)"), &inArgs[0], LUA_UPDATE_EFFECT_CALLBACK);
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_CREATE_GROOVES_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_CREATE_GROOVES_EFFECT_COMMAND,
+		strConCat("boolen createGroovesEffect=", LUA_CREATE_GROOVES_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767), int lenght"), &inArgs[0], LUA_CREATE_GROOVES_EFFECT_CALLBACK);
 
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_EFFECT, inArgs);
-	simRegisterCustomLuaFunction(LUA_PLAY_EFFECT_COMMAND,
-		strConCat("boolen playEffect=", LUA_PLAY_EFFECT_COMMAND, "()"), &inArgs[0], LUA_PLAY_EFFECT_CALLBACK);
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_UPDATE_DIR_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_UPDATE_DIR_EFFECT_COMMAND,
+		strConCat("boolen updateDirEffect=", LUA_UPDATE_DIR_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767))"), &inArgs[0], LUA_UPDATE_DIR_EFFECT_CALLBACK);
 
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_STOP_EFFECT, inArgs);
-	simRegisterCustomLuaFunction(LUA_STOP_EFFECT_COMMAND,
-		strConCat("boolen stopEffect=", LUA_STOP_EFFECT_COMMAND, "()"), &inArgs[0], LUA_STOP_EFFECT_CALLBACK);
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_UPDATE_GROOVES_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_UPDATE_GROOVES_EFFECT_COMMAND,
+		strConCat("boolen updateGroovesEffect=", LUA_UPDATE_GROOVES_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767), int length)"), &inArgs[0], LUA_UPDATE_GROOVES_EFFECT_CALLBACK);
 
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_DESTROY_EFFECT, inArgs);
-	simRegisterCustomLuaFunction(LUA_DESTROY_EFFECT_COMMAND,
-		strConCat("boolen destroyEffect=", LUA_DESTROY_EFFECT_COMMAND, "()"), &inArgs[0], LUA_DESTROY_EFFECT_CALLBACK);
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_DIR_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_PLAY_DIR_EFFECT_COMMAND,
+		strConCat("boolen playDirEffect=", LUA_PLAY_DIR_EFFECT_COMMAND, "()"), &inArgs[0], LUA_PLAY_DIR_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_GROOVES_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_PLAY_GROOVES_EFFECT_COMMAND,
+		strConCat("boolen playGroovesEffect=", LUA_PLAY_GROOVES_EFFECT_COMMAND, "()"), &inArgs[0], LUA_PLAY_GROOVES_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_STOP_DIR_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_STOP_DIR_EFFECT_COMMAND,
+		strConCat("boolen stopDirEffect=", LUA_STOP_DIR_EFFECT_COMMAND, "()"), &inArgs[0], LUA_STOP_DIR_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_STOP_GROOVES_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_STOP_GROOVES_EFFECT_COMMAND,
+		strConCat("boolen stopGroovesEffect=", LUA_STOP_GROOVES_EFFECT_COMMAND, "()"), &inArgs[0], LUA_STOP_GROOVES_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_DESTROY_DIR_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_DESTROY_DIR_EFFECT_COMMAND,
+		strConCat("boolen destroyDirEffect=", LUA_DESTROY_DIR_EFFECT_COMMAND, "()"), &inArgs[0], LUA_DESTROY_DIR_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_DESTROY_GROOVES_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_DESTROY_GROOVES_EFFECT_COMMAND,
+		strConCat("boolen destroyGroovesEffect=", LUA_DESTROY_GROOVES_EFFECT_COMMAND, "()"), &inArgs[0], LUA_DESTROY_GROOVES_EFFECT_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_INIT_RUMBLE, inArgs);
 	simRegisterCustomLuaFunction(LUA_INIT_RUMBLE_COMMAND,
