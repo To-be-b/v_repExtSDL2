@@ -100,6 +100,7 @@ public:
 
 	int effectIDDir;
 	int effectIDGrooves;
+	std::vector<float> Stick;
 	float StickX = - 99999;
 	float StickY = - 99999;
 	float StickZ = -99999;
@@ -199,10 +200,14 @@ bool HapticJoystick::refresh()
 		//if (_deadzoneY > 0) StickY *= 1 / (1 - _deadzoneY);
 		//if (_deadzoneZ > 0) StickZ *= 1 / (1 - _deadzoneX);
 		//if (_deadzoneT > 0) StickT *= 1 / (1 - _deadzoneY);
-		StickX = SDL_JoystickGetAxis(joy, 0);
-		StickY = SDL_JoystickGetAxis(joy, 1);
-		StickZ = SDL_JoystickGetAxis(joy, 2);
-		StickT = SDL_JoystickGetAxis(joy, 3);
+		for (int i = 0; i < SDL_JoystickGetHat(joy, 0); i++)
+		{
+			Stick[i] = SDL_JoystickGetAxis(joy, i);
+		}
+		//StickX = SDL_JoystickGetAxis(joy, 0);
+		//StickY = SDL_JoystickGetAxis(joy, 1);
+		//StickZ = SDL_JoystickGetAxis(joy, 2);
+		//StickT = SDL_JoystickGetAxis(joy, 3);
 		return true;
 	}
 	return false;
@@ -235,7 +240,7 @@ int HapticJoystick::hatPosition()
 		return(SDL_JoystickGetHat(joy, 0));
 	}
 }
-
+// Ab hier nur noch haptisches Feedback
 bool HapticJoystick::createDirectionalEffect(int dir_deg,int level)
 {
 	SDL_ClearError();
@@ -332,7 +337,6 @@ bool HapticJoystick::updateDirEffect(int dir_deg, int level)
 	}
 	return(true);
 }
-
 bool HapticJoystick::updateGroovesEffect(int dir_deg, int level, int length)
 {
 	SDL_ClearError();
@@ -351,7 +355,6 @@ bool HapticJoystick::updateGroovesEffect(int dir_deg, int level, int length)
 	}
 	return(true);
 }
-
 bool HapticJoystick::playRumbleEffect(int strength, int duration)
 {
 	SDL_ClearError();
@@ -371,7 +374,6 @@ bool HapticJoystick::playDirEffect()
 	}
 	return true;
 }
-
 bool HapticJoystick::playGroovesEffect()
 {
 	SDL_ClearError();
@@ -391,7 +393,6 @@ bool HapticJoystick::stopDirEffect()
 	}
 	return true;
 }
-
 bool HapticJoystick::stopGroovesEffect()
 {
 	SDL_ClearError();
@@ -401,18 +402,17 @@ bool HapticJoystick::stopGroovesEffect()
 	}
 	return true;
 }
-
 bool HapticJoystick::destroyDirEffect()
 {
 	SDL_HapticDestroyEffect(haptic, effectIDDir);
 	return true;
 }
-
 bool HapticJoystick::destroyGroovesEffect()
 {
 	SDL_HapticDestroyEffect(haptic, effectIDGrooves);
 	return true;
 }
+
 HapticJoystick joystick;
 
 #define LUA_INIT_SDL_COMMAND "simExtSDL_init"
@@ -498,7 +498,7 @@ void LUA_GET_JOYSTICK_COORDS_CALLBACK(SLuaCallBack* p)
 		// no inArgs to work with
 	}
 
-	D.pushOutData(CLuaFunctionDataItem(std::vector<float>({ joystick.StickX, joystick.StickY, joystick.StickZ, joystick.StickT })));
+	D.pushOutData(CLuaFunctionDataItem(std::vector<float>({ joystick.Stick })));
 
 	D.writeDataToLua(p);
 }
