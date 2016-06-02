@@ -100,11 +100,11 @@ public:
 
 	int effectIDDir;
 	int effectIDGrooves;
-	std::vector<float> Stick;
-	float StickX = - 99999;
-	float StickY = - 99999;
-	float StickZ = -99999;
-	float StickT= -99999;
+	std::vector<int> Stick;
+	//float StickX = -99999;
+	//float StickY = -99999;
+	//float StickZ = -99999;
+	//float StickT = -99999;
 };
 
 bool HapticJoystick::init_sdl(bool USE_HAPTIC)
@@ -117,7 +117,7 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 	};
 	if (SDL_NumJoysticks() > 0) {
 		joy = SDL_JoystickOpen(0);
-		if (joy!=NULL) {
+		if (joy != NULL) {
 			printf("Open Joystick 0\n");
 			printf("Name: %s\n", SDL_JoystickNameForIndex(0));
 			printf("Number of Axes: %d\n", SDL_JoystickNumAxes(joy));
@@ -131,26 +131,29 @@ bool HapticJoystick::init_sdl(bool USE_HAPTIC)
 		}
 	}
 	// see if user wants to init haptic and if joystick is capable of haptic
-	if (SDL_JoystickIsHaptic(joy) == 1) {
-		if (USE_HAPTIC) {
+	if (USE_HAPTIC) {
+		if (SDL_JoystickIsHaptic(joy) == 1) {
 			if (SDL_InitSubSystem(SDL_INIT_HAPTIC) != 0) {
 				fprintf(stderr, "Unable to initialize Haptic System: %s\n", SDL_GetError());
 				atexit(SDL_Quit);
 				return (false);
-			}else{
+			}
+			else {
+				haptic = SDL_HapticOpen(0); // SDL_HapticOpenFromJoystick(joy);
+				if (haptic == NULL) {
+					fprintf(stderr, "Unable to initialize Haptic Joystick: %s\n", SDL_GetError());
+					return(false);
+				}
 				printf("Haptic system initialized \n");
 			};
+
+		}
+		else {
+			printf("Joystick is not haptic \n");
+			return(false);
 		};
-	}
-	else {
-		printf("Joystick is not haptic \n");
-		return(false);
 	};
-	haptic = SDL_HapticOpen(0); // SDL_HapticOpenFromJoystick(joy);
-	if (haptic == NULL) {
-		fprintf(stderr, "Unable to initialize Haptic Joystick: %s\n", SDL_GetError());
-		return(false);
-	}
+
 	return(true);
 };
 bool HapticJoystick::quit_sdl()
@@ -164,8 +167,8 @@ bool HapticJoystick::quit_sdl()
 		else if (effectIDGrooves > 0) {
 			SDL_HapticDestroyEffect(haptic, effectIDGrooves);
 		}
-	
-	printf			("Haptic closed \n");
+
+		printf("Haptic closed \n");
 	}
 
 	if (SDL_JoystickGetAttached(joy)) {
@@ -181,12 +184,14 @@ bool HapticJoystick::quit_sdl()
 
 bool HapticJoystick::refresh()
 {
+	Stick.clear();
 	SDL_ClearError();
 	SDL_JoystickUpdate();
-	if (joy ==  NULL) {
+	if (joy == NULL) {
 		fprintf(stderr, "Unable to access joystick: %s\n", SDL_GetError());
 		return (false);
-	}else{
+	}
+	else {
 		//printf("Number of Axes: %d\n", SDL_JoystickGetHat(joy,0));
 		//float normX = fmaxf(-1, SDL_JoystickGetAxis(joy, 0) / 32767);
 		//float normY = fmaxf(-1, SDL_JoystickGetAxis(joy, 1) / 32767);
@@ -200,9 +205,9 @@ bool HapticJoystick::refresh()
 		//if (_deadzoneY > 0) StickY *= 1 / (1 - _deadzoneY);
 		//if (_deadzoneZ > 0) StickZ *= 1 / (1 - _deadzoneX);
 		//if (_deadzoneT > 0) StickT *= 1 / (1 - _deadzoneY);
-		for (int i = 0; i < SDL_JoystickGetHat(joy, 0); i++)
+		for (int i = 0; i < SDL_JoystickNumAxes(joy); i++)
 		{
-			Stick[i] = SDL_JoystickGetAxis(joy, i);
+			Stick.push_back(SDL_JoystickGetAxis(joy, i));
 		}
 		//StickX = SDL_JoystickGetAxis(joy, 0);
 		//StickY = SDL_JoystickGetAxis(joy, 1);
@@ -241,11 +246,11 @@ int HapticJoystick::hatPosition()
 	}
 }
 // Ab hier nur noch haptisches Feedback
-bool HapticJoystick::createDirectionalEffect(int dir_deg,int level)
+bool HapticJoystick::createDirectionalEffect(int dir_deg, int level)
 {
 	SDL_ClearError();
 	if (haptic == NULL) {
-		fprintf(stderr,"No Haptic Joystick initialized : %s\n", SDL_GetError());
+		fprintf(stderr, "No Haptic Joystick initialized : %s\n", SDL_GetError());
 		return(false);
 	}
 	if ((SDL_HapticQuery(haptic) & SDL_HAPTIC_CONSTANT) == 0) {
@@ -254,20 +259,20 @@ bool HapticJoystick::createDirectionalEffect(int dir_deg,int level)
 		return false;
 	}
 	int dir = dir_deg * 100;
-		memset(&effectDir, 0, sizeof(SDL_HapticEffect));
-		effectDir.type = SDL_HAPTIC_CONSTANT;
-		effectDir.constant.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
-		effectDir.constant.direction.dir[0] = dir;
-		effectDir.constant.level = level;
-		effectDir.constant.length = 5; //VERSTEHEN DIESES WERTS
-		printf("Directional force with magnitude of: %d and direction: %d ° \n", level, dir_deg);
+	memset(&effectDir, 0, sizeof(SDL_HapticEffect));
+	effectDir.type = SDL_HAPTIC_CONSTANT;
+	effectDir.constant.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
+	effectDir.constant.direction.dir[0] = dir;
+	effectDir.constant.level = level;
+	effectDir.constant.length = 5; //VERSTEHEN DIESES WERTS
+	printf("Directional force with magnitude of: %d and direction: %d ° \n", level, dir_deg);
 	// Upload the effect
 	effectIDDir = SDL_HapticNewEffect(haptic, &effectDir);
 	if (effectIDDir < 0) {
 		fprintf(stderr, "Effect can not be uploaded: %s\n", SDL_GetError());
 		return false;
 	}
-	
+
 	return true;
 }
 bool HapticJoystick::createGroovesEffect(int dir_deg, int level, int length)
@@ -279,19 +284,19 @@ bool HapticJoystick::createGroovesEffect(int dir_deg, int level, int length)
 	}
 
 	int dir = dir_deg * 100;
-		if ((SDL_HapticQuery(haptic) & SDL_HAPTIC_RAMP) == 0) {
-			SDL_HapticClose(haptic);
-			fprintf(stderr, "Joystick does not support that effect \n");
-			return false;
-		}
-		memset(&effectGrooves, 0, sizeof(SDL_HapticEffect));
-		effectGrooves.type = SDL_HAPTIC_RAMP;
-		effectGrooves.ramp.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
-		effectGrooves.ramp.direction.dir[0] = dir;
-		effectGrooves.ramp.length = length;
-		effectGrooves.ramp.start = level;
-		effectGrooves.ramp.end = level;
-		printf("Grooves with magnitude of: %d,length: %d ms and direction: %d ° \n", level, length, dir_deg);
+	if ((SDL_HapticQuery(haptic) & SDL_HAPTIC_RAMP) == 0) {
+		SDL_HapticClose(haptic);
+		fprintf(stderr, "Joystick does not support that effect \n");
+		return false;
+	}
+	memset(&effectGrooves, 0, sizeof(SDL_HapticEffect));
+	effectGrooves.type = SDL_HAPTIC_RAMP;
+	effectGrooves.ramp.direction.type = SDL_HAPTIC_POLAR; // Polar coordinates
+	effectGrooves.ramp.direction.dir[0] = dir;
+	effectGrooves.ramp.length = length;
+	effectGrooves.ramp.start = level;
+	effectGrooves.ramp.end = level;
+	printf("Grooves with magnitude of: %d,length: %d ms and direction: %d ° \n", level, length, dir_deg);
 
 	// Upload the effect
 	effectIDGrooves = SDL_HapticNewEffect(haptic, &effectGrooves);
@@ -302,7 +307,7 @@ bool HapticJoystick::createGroovesEffect(int dir_deg, int level, int length)
 
 	return true;
 }
-bool HapticJoystick::createRumbleEffect() 
+bool HapticJoystick::createRumbleEffect()
 {
 	SDL_ClearError();
 	if (haptic == NULL) {
@@ -313,7 +318,8 @@ bool HapticJoystick::createRumbleEffect()
 		if (SDL_HapticRumbleInit(haptic) != 0) {
 			fprintf(stderr, "Failed to initialize rumble : %s\n", SDL_GetError());
 		}
-	}else{
+	}
+	else {
 		fprintf(stderr, "Rumble not supported : %s\n", SDL_GetError());
 	}
 	return(true);
@@ -323,17 +329,17 @@ bool HapticJoystick::updateDirEffect(int dir_deg, int level)
 	SDL_ClearError();
 	int dir = dir_deg * 100;
 
-		effectDir.constant.direction.dir[0] = dir;
-		effectDir.constant.level = level;
+	effectDir.constant.direction.dir[0] = dir;
+	effectDir.constant.level = level;
 
-		effectDir.ramp.direction.dir[0] = dir;
-		/*effect.ramp.start = level;
-		effect.ramp.end = level;*/
-		effectDir.constant.level = level;
-	
-		if (SDL_HapticUpdateEffect(haptic, effectIDDir, &effectDir) != 0) {
-			fprintf(stderr, "Effect update failed : %s\n", SDL_GetError());
-			return(false);
+	effectDir.ramp.direction.dir[0] = dir;
+	/*effect.ramp.start = level;
+	effect.ramp.end = level;*/
+	effectDir.constant.level = level;
+
+	if (SDL_HapticUpdateEffect(haptic, effectIDDir, &effectDir) != 0) {
+		fprintf(stderr, "Effect update failed : %s\n", SDL_GetError());
+		return(false);
 	}
 	return(true);
 }
@@ -497,8 +503,8 @@ void LUA_GET_JOYSTICK_COORDS_CALLBACK(SLuaCallBack* p)
 	{
 		// no inArgs to work with
 	}
-
-	D.pushOutData(CLuaFunctionDataItem(std::vector<float>({ joystick.Stick })));
+	
+	D.pushOutData(CLuaFunctionDataItem(joystick.Stick));
 
 	D.writeDataToLua(p);
 }
@@ -547,7 +553,7 @@ void LUA_HAT_POSITION_CALLBACK(SLuaCallBack* p)
 
 const int inArgs_CREATE_DIR_EFFECT[] = {
 	2,
-	sim_lua_arg_int, 1, 
+	sim_lua_arg_int, 1,
 	sim_lua_arg_int, 1,
 };
 
@@ -639,7 +645,7 @@ void LUA_UPDATE_GROOVES_EFFECT_CALLBACK(SLuaCallBack* p)
 		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
 
 		int direction_update = inData->at(0).intData[0]; // the first argument
-		int level_update = inData->at(1).intData[0]; 
+		int level_update = inData->at(1).intData[0];
 		int length_update = inData->at(2).intData[0];
 		effectSuccess = joystick.updateGroovesEffect(direction_update, level_update, length_update);
 	}
@@ -768,7 +774,7 @@ void LUA_INIT_RUMBLE_CALLBACK(SLuaCallBack* p) {
 	if (D.readDataFromLua(p, inArgs_INIT_RUMBLE, inArgs_INIT_RUMBLE[0], LUA_INIT_RUMBLE_COMMAND)) {
 		// no Input to work with
 	}
-	
+
 	D.pushOutData(CLuaFunctionDataItem(joystick.createRumbleEffect()));
 	D.writeDataToLua(p);
 }
@@ -914,7 +920,7 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_QUIT_SDL, inArgs);
 	simRegisterCustomLuaFunction(LUA_QUIT_SDL_COMMAND, strConCat("boolean status=", LUA_QUIT_SDL_COMMAND, "()"), &inArgs[0], LUA_QUIT_SDL_CALLBACK);
-	
+
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_REFRESH_STATE, inArgs);
 	simRegisterCustomLuaFunction(LUA_REFRESH_STATE_COMMAND,
 		strConCat("boolean refreshState=", LUA_REFRESH_STATE_COMMAND, "()"), &inArgs[0], LUA_REFRESH_STATE_CALLBACK);
@@ -922,7 +928,7 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GET_JOYSTICK_COORDS, inArgs);
 	simRegisterCustomLuaFunction(LUA_GET_JOYSTICK_COORDS_COMMAND,
 		strConCat("table_4 leftThumbStickCoords=", LUA_GET_JOYSTICK_COORDS_COMMAND, "()"), &inArgs[0], LUA_GET_JOYSTICK_COORDS_CALLBACK);
-	
+
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_IS_BUTTON_PRESSED, inArgs);
 	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
 		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
