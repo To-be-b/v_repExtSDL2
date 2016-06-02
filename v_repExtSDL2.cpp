@@ -78,6 +78,7 @@ public:
 	bool quit_sdl();
 	bool refresh();
 	bool isPressed(int button);
+	int numButtons();
 	int hatPosition();
 	bool createDirectionalEffect(int dir_deg, int level);
 	bool createGroovesEffect(int dir_deg, int level, int length);
@@ -217,7 +218,16 @@ bool HapticJoystick::refresh()
 	}
 	return false;
 }
-
+int HapticJoystick::numButtons()
+{
+	SDL_ClearError();
+	if (joy == NULL) {
+		fprintf(stderr, "Unable to access joystick: %s\n", SDL_GetError());
+		return(-999);
+	}else{
+		return(SDL_JoystickNumButtons(joy));
+	}
+}
 bool HapticJoystick::isPressed(int button)
 {
 	SDL_ClearError();
@@ -231,6 +241,7 @@ bool HapticJoystick::isPressed(int button)
 	}
 	return(false);
 }
+
 int HapticJoystick::hatPosition()
 {
 
@@ -506,6 +517,24 @@ void LUA_GET_JOYSTICK_COORDS_CALLBACK(SLuaCallBack* p)
 	
 	D.pushOutData(CLuaFunctionDataItem(joystick.Stick));
 
+	D.writeDataToLua(p);
+}
+
+#define LUA_GET_NUM_BUTTONS_COMMAND "simExtSDL_getNumButtons"
+
+const int inArgs_GET_NUM_BUTTONS[] = {
+	0,
+};
+
+void LUA_GET_NUM_BUTTONS_CALLBACK (SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	int numButtons = -999;
+	if (D.readDataFromLua(p, inArgs_GET_NUM_BUTTONS, inArgs_GET_NUM_BUTTONS[0], LUA_GET_NUM_BUTTONS_COMMAND))
+	{
+			}
+	D.pushOutData(CLuaFunctionDataItem(joystick.numButtons()));
 	D.writeDataToLua(p);
 }
 
@@ -928,6 +957,13 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GET_JOYSTICK_COORDS, inArgs);
 	simRegisterCustomLuaFunction(LUA_GET_JOYSTICK_COORDS_COMMAND,
 		strConCat("table_4 leftThumbStickCoords=", LUA_GET_JOYSTICK_COORDS_COMMAND, "()"), &inArgs[0], LUA_GET_JOYSTICK_COORDS_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GET_NUM_BUTTONS , inArgs);
+	simRegisterCustomLuaFunction(LUA_GET_NUM_BUTTONS_COMMAND,
+		strConCat("int numButtons=", LUA_GET_NUM_BUTTONS_COMMAND, ""), &inArgs[0], LUA_GET_NUM_BUTTONS_CALLBACK);
+
+	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
+		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_IS_BUTTON_PRESSED, inArgs);
 	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
