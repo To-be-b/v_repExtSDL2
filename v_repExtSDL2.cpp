@@ -101,11 +101,7 @@ public:
 
 	int effectIDDir;
 	int effectIDGrooves;
-	std::vector<int> Stick;
-	//float StickX = -99999;
-	//float StickY = -99999;
-	//float StickZ = -99999;
-	//float StickT = -99999;
+	std::vector<float> Stick;
 };
 
 bool HapticJoystick::init_sdl(bool USE_HAPTIC)
@@ -193,7 +189,7 @@ bool HapticJoystick::refresh()
 		return (false);
 	}
 	else {
-		//printf("Number of Axes: %d\n", SDL_JoystickGetHat(joy,0));
+
 		//float normX = fmaxf(-1, SDL_JoystickGetAxis(joy, 0) / 32767);
 		//float normY = fmaxf(-1, SDL_JoystickGetAxis(joy, 1) / 32767);
 		//float normZ = fmaxf(-1, SDL_JoystickGetAxis(joy, 2) / 32767);
@@ -210,10 +206,6 @@ bool HapticJoystick::refresh()
 		{
 			Stick.push_back(SDL_JoystickGetAxis(joy, i));
 		}
-		//StickX = SDL_JoystickGetAxis(joy, 0);
-		//StickY = SDL_JoystickGetAxis(joy, 1);
-		//StickZ = SDL_JoystickGetAxis(joy, 2);
-		//StickT = SDL_JoystickGetAxis(joy, 3);
 		return true;
 	}
 	return false;
@@ -241,7 +233,6 @@ bool HapticJoystick::isPressed(int button)
 	}
 	return(false);
 }
-
 int HapticJoystick::hatPosition()
 {
 
@@ -441,7 +432,7 @@ const int inArgs_INIT_SDL[] = {
 
 void LUA_INIT_SDL_CALLBACK(SLuaCallBack *p)
 {
-	p->outputArgCount = 0;
+	p->outputArgCount = 1;
 	CLuaFunctionData D;
 	bool res = false;
 	bool useOfHaptic = false;
@@ -464,7 +455,7 @@ const int inArgs_QUIT_SDL[] = {
 
 void LUA_QUIT_SDL_CALLBACK(SLuaCallBack *p)
 {
-	p->outputArgCount = 0;
+	p->outputArgCount = 1;
 	CLuaFunctionData D;
 	bool res = false;
 	if (D.readDataFromLua(p, inArgs_QUIT_SDL, inArgs_QUIT_SDL[0], LUA_QUIT_SDL_COMMAND))
@@ -956,16 +947,12 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GET_JOYSTICK_COORDS, inArgs);
 	simRegisterCustomLuaFunction(LUA_GET_JOYSTICK_COORDS_COMMAND,
-		strConCat("table_4 leftThumbStickCoords=", LUA_GET_JOYSTICK_COORDS_COMMAND, "()"), &inArgs[0], LUA_GET_JOYSTICK_COORDS_CALLBACK);
+		strConCat("table StickCoords=", LUA_GET_JOYSTICK_COORDS_COMMAND, "()"), &inArgs[0], LUA_GET_JOYSTICK_COORDS_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GET_NUM_BUTTONS , inArgs);
 	simRegisterCustomLuaFunction(LUA_GET_NUM_BUTTONS_COMMAND,
-		strConCat("int numButtons=", LUA_GET_NUM_BUTTONS_COMMAND, ""), &inArgs[0], LUA_GET_NUM_BUTTONS_CALLBACK);
+		strConCat("int numButtons=", LUA_GET_NUM_BUTTONS_COMMAND, "()"), &inArgs[0], LUA_GET_NUM_BUTTONS_CALLBACK);
 
-	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
-		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
-
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_IS_BUTTON_PRESSED, inArgs);
 	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
 		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
 
@@ -1019,7 +1006,7 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_RUMBLE, inArgs);
 	simRegisterCustomLuaFunction(LUA_PLAY_RUMBLE_COMMAND,
-		strConCat("boolen initRumble=", LUA_PLAY_RUMBLE_COMMAND, "(int strengt(0-1), int duration[ms])"), &inArgs[0], LUA_PLAY_RUMBLE_CALLBACK);
+		strConCat("boolen playRumble=", LUA_PLAY_RUMBLE_COMMAND, "(int strengt(0-1), int duration[ms])"), &inArgs[0], LUA_PLAY_RUMBLE_CALLBACK);
 
 	return 1;
 
