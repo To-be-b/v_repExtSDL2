@@ -521,7 +521,6 @@ void LUA_GET_NUM_BUTTONS_CALLBACK (SLuaCallBack* p)
 {
 	p->outputArgCount = 1;
 	CLuaFunctionData D;
-	int numButtons = -999;
 	if (D.readDataFromLua(p, inArgs_GET_NUM_BUTTONS, inArgs_GET_NUM_BUTTONS[0], LUA_GET_NUM_BUTTONS_COMMAND))
 	{
 			}
@@ -951,10 +950,11 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GET_NUM_BUTTONS , inArgs);
 	simRegisterCustomLuaFunction(LUA_GET_NUM_BUTTONS_COMMAND,
-		strConCat("int numButtons=", LUA_GET_NUM_BUTTONS_COMMAND, "()"), &inArgs[0], LUA_GET_NUM_BUTTONS_CALLBACK);
+		strConCat("int numButtons=", LUA_GET_NUM_BUTTONS_COMMAND, ""), &inArgs[0], LUA_GET_NUM_BUTTONS_CALLBACK);
 
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_IS_BUTTON_PRESSED, inArgs);
 	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
-		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
+		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int ButtonNumber)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_HAT_POSITION, inArgs);
 	simRegisterCustomLuaFunction(LUA_HAT_POSITION_COMMAND,
