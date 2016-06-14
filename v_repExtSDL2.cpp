@@ -16,7 +16,7 @@
 
 #include "v_repExtSDL2.h"
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include <iostream>
 #include <vector>
@@ -62,18 +62,8 @@ LIBRARY vrepLib; // the V-REP library that we will dynamically load and bind
 
 class HapticJoystick
 {
-private:
-	//float _deadzoneX;
-	//float _deadzoneY;
-	//float _deadzoneZ;
-	//float _deadzoneT;
-	//SDL_Event e;
 
 public:
-	//HapticJoystick() : _deadzoneX(0.9f), _deadzoneY(0.01f), _deadzoneZ(0.01f), _deadzoneT(0.01f)  {} //verstehen!!
-	//HapticJoystick(float dzX, float dzY, float dzZ, float dzT) : _deadzoneX(dzX), _deadzoneY(dzY), _deadzoneZ(dzX), _deadzoneT(dzY) {} //verstehen!!
-
-
 	bool init_sdl(bool USE_HAPTIC);
 	bool quit_sdl();
 	bool refresh();
@@ -190,18 +180,6 @@ bool HapticJoystick::refresh()
 	}
 	else {
 
-		//float normX = fmaxf(-1, SDL_JoystickGetAxis(joy, 0) / 32767);
-		//float normY = fmaxf(-1, SDL_JoystickGetAxis(joy, 1) / 32767);
-		//float normZ = fmaxf(-1, SDL_JoystickGetAxis(joy, 2) / 32767);
-		//float normT = fmaxf(-1, SDL_JoystickGetAxis(joy, 3) / 32767);
-		//StickX = (abs(normX) < _deadzoneX ? 0 : (abs(normX) - _deadzoneX) * (normX / abs(normX)));
-		//StickY = (abs(normY) < _deadzoneY ? 0 : (abs(normY) - _deadzoneY) * (normY / abs(normY)));
-		//StickZ = (abs(normZ) < _deadzoneX ? 0 : (abs(normZ) - _deadzoneX) * (normZ / abs(normZ)));
-		//StickT = (abs(normT) < _deadzoneY ? 0 : (abs(normT) - _deadzoneY) * (normT / abs(normT)));
-		//if (_deadzoneX > 0) StickX *= 1 / (1 - _deadzoneX);
-		//if (_deadzoneY > 0) StickY *= 1 / (1 - _deadzoneY);
-		//if (_deadzoneZ > 0) StickZ *= 1 / (1 - _deadzoneX);
-		//if (_deadzoneT > 0) StickT *= 1 / (1 - _deadzoneY);
 		for (int i = 0; i < SDL_JoystickNumAxes(joy); i++)
 		{
 			Stick.push_back(SDL_JoystickGetAxis(joy, i));
@@ -247,7 +225,7 @@ int HapticJoystick::hatPosition()
 		return(SDL_JoystickGetHat(joy, 0));
 	}
 }
-// Ab hier nur noch haptisches Feedback
+// Haptic Effects
 bool HapticJoystick::createDirectionalEffect(int dir_deg, int level)
 {
 	SDL_ClearError();
@@ -953,6 +931,7 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	simRegisterCustomLuaFunction(LUA_GET_NUM_BUTTONS_COMMAND,
 		strConCat("int numButtons=", LUA_GET_NUM_BUTTONS_COMMAND, "()"), &inArgs[0], LUA_GET_NUM_BUTTONS_CALLBACK);
 
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_IS_BUTTON_PRESSED, inArgs);
 	simRegisterCustomLuaFunction(LUA_IS_BUTTON_PRESSED_COMMAND,
 		strConCat("boolean isButtonPressed=", LUA_IS_BUTTON_PRESSED_COMMAND, "(int Button)"), &inArgs[0], LUA_IS_BUTTON_PRESSED_CALLBACK);
 
