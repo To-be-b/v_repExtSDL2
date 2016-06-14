@@ -2,6 +2,7 @@
 SDL2 plugin for Vrep
 
 Implementation of the following SDL functions:
+
 General functions:
 
 	bool init_sdl(bool USE_HAPTIC);
