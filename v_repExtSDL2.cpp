@@ -70,6 +70,7 @@ public:
 	bool isPressed(int button);
 	int numButtons();
 	int hatPosition();
+
 	bool createDirectionalEffect(int dir_deg, int level);
 	bool createGroovesEffect(int dir_deg, int level, int length);
 	bool createRumbleEffect();
@@ -78,6 +79,7 @@ public:
 	bool updateGroovesEffect(int dir_deg, int level, int length);
 	bool playDirEffect();
 	bool playGroovesEffect();
+	bool stopRumbleEffect();
 	bool destroyDirEffect();
 	bool destroyGroovesEffect();
 	bool stopDirEffect();
@@ -367,6 +369,15 @@ bool HapticJoystick::playGroovesEffect()
 	{
 		fprintf(stderr, "Effect can not be played: %s\n", SDL_GetError());
 		return(false);
+	}
+	return true;
+}
+bool HapticJoystick::stopRumbleEffect()
+{
+	SDL_ClearError();
+	if (SDL_HapticRumbleStop(haptic) != 0) {
+		fprintf(stderr, "Effect can not be stopped: %s\n", SDL_GetError());
+		return false;
 	}
 	return true;
 }
@@ -741,6 +752,25 @@ void LUA_STOP_DIR_EFFECT_CALLBACK(SLuaCallBack* p)
 	D.writeDataToLua(p);
 }
 
+#define LUA_STOP_RUMBLE_EFFECT_COMMAND "simExtSDL_stopRumbleEffect"
+
+const int inArgs_STOP_RUMBLE_EFFECT[] = {
+	0,
+};
+
+void LUA_STOP_RUMBLE_EFFECT_CALLBACK(SLuaCallBack* p)
+{
+	p->outputArgCount = 1;
+	CLuaFunctionData D;
+	if (D.readDataFromLua(p, inArgs_STOP_RUMBLE_EFFECT, inArgs_STOP_RUMBLE_EFFECT[0], LUA_STOP_RUMBLE_EFFECT_COMMAND))
+	{
+		// no input
+	}
+	D.pushOutData(CLuaFunctionDataItem(joystick.stopRumbleEffect()));
+	D.writeDataToLua(p);
+}
+
+
 #define LUA_STOP_GROOVES_EFFECT_COMMAND "simExtSDL_stopGroovesEffect"
 
 const int inArgs_STOP_GROOVES_EFFECT[] = {
@@ -759,7 +789,7 @@ void LUA_STOP_GROOVES_EFFECT_CALLBACK(SLuaCallBack* p)
 	D.writeDataToLua(p);
 }
 
-#define LUA_INIT_RUMBLE_COMMAND "simExtSDL_initRumble"
+#define LUA_INIT_RUMBLE_COMMAND "simExtSDL_createRumbleEffect"
 
 const int inArgs_INIT_RUMBLE[] = {
 	0,
@@ -777,19 +807,19 @@ void LUA_INIT_RUMBLE_CALLBACK(SLuaCallBack* p) {
 	D.writeDataToLua(p);
 }
 
-#define LUA_PLAY_RUMBLE_COMMAND "simExtSDL_playRumble"
+#define LUA_PLAY_RUMBLE_EFFECT_COMMAND "simExtSDL_playRumbleEffect"
 
-const int inArgs_PLAY_RUMBLE[] = {
+const int inArgs_PLAY_RUMBLE_EFFECT[] = {
 	2,
 	sim_lua_arg_int,1,
 	sim_lua_arg_int,1,
 };
 
-void LUA_PLAY_RUMBLE_CALLBACK(SLuaCallBack* p) {
+void LUA_PLAY_RUMBLE_EFFECT_CALLBACK(SLuaCallBack* p) {
 	p->outputArgCount = 1;
 	CLuaFunctionData D;
 	bool rumbleSuccess = false;
-	if (D.readDataFromLua(p, inArgs_PLAY_RUMBLE, inArgs_PLAY_RUMBLE[0], LUA_PLAY_RUMBLE_COMMAND)) {
+	if (D.readDataFromLua(p, inArgs_PLAY_RUMBLE_EFFECT, inArgs_PLAY_RUMBLE_EFFECT[0], LUA_PLAY_RUMBLE_EFFECT_COMMAND)) {
 		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
 
 		int strength = inData->at(0).intData[0]; // the first argument
@@ -802,53 +832,6 @@ void LUA_PLAY_RUMBLE_CALLBACK(SLuaCallBack* p) {
 	D.writeDataToLua(p);
 }
 
-#define LUA_GETSENSORDATA_COMMAND "simExtSkeleton_getSensorData" // the name of the new Lua command
-
-const int inArgs_GETSENSORDATA[] = { // Decide what kind of arguments we need
-	3, // we want 3 input arguments
-	sim_lua_arg_int,0, // first argument is an integer
-	sim_lua_arg_float | sim_lua_arg_table,3, // second argument should be a table of at least 3 float values (use 0 instead of 3 for a table of random size)
-	sim_lua_arg_int | sim_lua_arg_table,2, // third argument should be a table of at least 2 integer values (use 0 instead of 2 for a table of random size)
-};
-
-void LUA_GETSENSORDATA_CALLBACK(SLuaCallBack* p)
-{ // the callback function of the new Lua command ("simExtSkeleton_getSensorData")
-	p->outputArgCount = 0;
-	CLuaFunctionData D;
-	// If successful the command will return an interger (result), a float table of size 3 (data), and a float (distance). If the command is not successful, it will not return anything
-	bool commandWasSuccessful = false;
-	int returnResult;
-	std::vector<float> returnData;
-	float returnDistance;
-	if (D.readDataFromLua(p, inArgs_GETSENSORDATA, inArgs_GETSENSORDATA[0], LUA_GETSENSORDATA_COMMAND))
-	{ // above function reads in the expected arguments. If the arguments are wrong, it returns false and outputs a message to the simulation status bar
-		std::vector<CLuaFunctionDataItem>* inData = D.getInDataPtr();
-
-		int sensorIndex = inData->at(0).intData[0]; // the first argument
-		std::vector<float>& floatParameters = inData->at(1).floatData; // the second argument
-		std::vector<int>& intParameters = inData->at(2).intData; // the third argument
-
-		// Now you can do something with above's arguments. For example:
-		if ((sensorIndex >= 0) && (sensorIndex < 10))
-		{
-			commandWasSuccessful = true;
-			returnResult = 1;
-			returnData.push_back(1.0f);
-			returnData.push_back(2.0f);
-			returnData.push_back(3.0f);
-			returnDistance = 59.0f;
-		}
-		else
-			simSetLastError(LUA_GETSENSORDATA_COMMAND, "Invalid sensor index."); // output an error message to the simulator's status bar
-	}
-	if (commandWasSuccessful)
-	{ // prepare the return values:
-		D.pushOutData(CLuaFunctionDataItem(returnResult));
-		D.pushOutData(CLuaFunctionDataItem(returnData));
-		D.pushOutData(CLuaFunctionDataItem(returnDistance));
-	}
-	D.writeDataToLua(p);
-}
 // --------------------------------------------------------------------------------------
 
 
@@ -910,9 +893,6 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 	std::vector<int> inArgs;
 
 	// Register the new Lua command "simExtSkeleton_getSensorData":
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_GETSENSORDATA, inArgs);
-	simRegisterCustomLuaFunction(LUA_GETSENSORDATA_COMMAND, strConCat("number result,table data,number distance=", LUA_GETSENSORDATA_COMMAND, "(number sensorIndex,table_3 floatParameters,table_2 intParameters)"), &inArgs[0], LUA_GETSENSORDATA_CALLBACK);
-
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_INIT_SDL, inArgs);
 	simRegisterCustomLuaFunction(LUA_INIT_SDL_COMMAND, strConCat("boolean status=", LUA_INIT_SDL_COMMAND, "(boolean Haptic Initialization)"), &inArgs[0], LUA_INIT_SDL_CALLBACK);
 
@@ -981,11 +961,15 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_INIT_RUMBLE, inArgs);
 	simRegisterCustomLuaFunction(LUA_INIT_RUMBLE_COMMAND,
-		strConCat("boolen initRumble=", LUA_INIT_RUMBLE_COMMAND, "()"), &inArgs[0], LUA_INIT_RUMBLE_CALLBACK);
+		strConCat("boolen initRumbleEffect=", LUA_INIT_RUMBLE_COMMAND, "()"), &inArgs[0], LUA_INIT_RUMBLE_CALLBACK);
 
-	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_RUMBLE, inArgs);
-	simRegisterCustomLuaFunction(LUA_PLAY_RUMBLE_COMMAND,
-		strConCat("boolen playRumble=", LUA_PLAY_RUMBLE_COMMAND, "(int strengt(0-1), int duration[ms])"), &inArgs[0], LUA_PLAY_RUMBLE_CALLBACK);
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_RUMBLE_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_PLAY_RUMBLE_EFFECT_COMMAND,
+		strConCat("boolen playRumbleEffect=", LUA_PLAY_RUMBLE_EFFECT_COMMAND, "(int strengt(0-1), int duration[ms])"), &inArgs[0], LUA_PLAY_RUMBLE_EFFECT_CALLBACK);
+
+	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_STOP_RUMBLE_EFFECT, inArgs);
+	simRegisterCustomLuaFunction(LUA_STOP_RUMBLE_EFFECT_COMMAND,
+		strConCat("boolen stopRumbleEffect=", LUA_STOP_RUMBLE_EFFECT_COMMAND, ""), &inArgs[0], LUA_STOP_RUMBLE_EFFECT_CALLBACK);
 
 	return 1;
 
