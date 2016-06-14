@@ -3,6 +3,7 @@ SDL2 plugin for Vrep
 
 Implementation of the following SDL functions:
 General functions:
+
 	bool init_sdl(bool USE_HAPTIC);
 	bool quit_sdl();
 	bool refresh();
@@ -11,6 +12,7 @@ General functions:
 	int hatPosition();
 
 Haptic functions:
+
 	bool createDirectionalEffect(int dir_deg, int level);
 	bool createGroovesEffect(int dir_deg, int level, int length);
 	bool createRumbleEffect();
@@ -25,4 +27,6 @@ Haptic functions:
 	bool stopGroovesEffect();
 
 Easy to extend and supposed to be cross-platfrom.
+
+It is imporant to have link SDL2 and put SDL.dll into VRep folder.
 
