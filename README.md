@@ -1,5 +1,5 @@
 # v_repExtSDL2
-SDL2 plugin for Vrep
+SDL2 plugin for Vrep v1.0
 
 Implementation of the following SDL functions:
 
@@ -30,4 +30,7 @@ Haptic functions:
 Easy to extend and supposed to be cross-platfrom.
 
 It is imporant to have link SDL2 and put SDL.dll into VRep folder.
+
+Agenda:
+implement the possibility to choose a device index
 
