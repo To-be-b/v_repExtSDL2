@@ -1,7 +1,7 @@
-// Copyright 2006-2016 Coppelia Robotics GmbH. All rights reserved. 
-// marc@coppeliarobotics.com
-// www.coppeliarobotics.com
-// 
+// -------------------------------------------------------------------
+//	 v-rep SDL2 plugin v1.0
+//   Author:  Tobias Benz , tobias.m.benz [a] gmail.com
+//   GitHub: https://github.com/To-be-b/v_repExtSDL2
 // -------------------------------------------------------------------
 // THIS FILE IS DISTRIBUTED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
 // WARRANTY. THE USER WILL USE IT AT HIS/HER OWN RISK. THE ORIGINAL
@@ -11,8 +11,7 @@
 // 
 // You are free to use/modify/distribute this file for whatever purpose!
 // -------------------------------------------------------------------
-//
-// This file was automatically created for V-REP release V3.3.0 on February 19th 2016
+
 
 #include "v_repExtSDL2.h"
 
