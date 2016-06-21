@@ -27,6 +27,8 @@ Haptic functions:
 	bool stopDirEffect();
 	bool stopGroovesEffect();
 
+Note: it is important to keep track of the effect state and not to start it every simulation loop in a non-threaded childscript (see example scene)
+	
 Easy to extend and supposed to be cross-platfrom.
 
 It is imporant to have link SDL2 and put SDL.dll into VRep folder.

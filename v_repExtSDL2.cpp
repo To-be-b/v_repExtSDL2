@@ -924,7 +924,7 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_CREATE_GROOVES_EFFECT, inArgs);
 	simRegisterCustomLuaFunction(LUA_CREATE_GROOVES_EFFECT_COMMAND,
-		strConCat("boolen createGroovesEffect=", LUA_CREATE_GROOVES_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767), int lenght"), &inArgs[0], LUA_CREATE_GROOVES_EFFECT_CALLBACK);
+		strConCat("boolen createGroovesEffect=", LUA_CREATE_GROOVES_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767), int RampLenght"), &inArgs[0], LUA_CREATE_GROOVES_EFFECT_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_UPDATE_DIR_EFFECT, inArgs);
 	simRegisterCustomLuaFunction(LUA_UPDATE_DIR_EFFECT_COMMAND,
@@ -932,7 +932,7 @@ VREP_DLLEXPORT unsigned char v_repStart(void* reservedPointer, int reservedInt)
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_UPDATE_GROOVES_EFFECT, inArgs);
 	simRegisterCustomLuaFunction(LUA_UPDATE_GROOVES_EFFECT_COMMAND,
-		strConCat("boolen updateGroovesEffect=", LUA_UPDATE_GROOVES_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767), int length)"), &inArgs[0], LUA_UPDATE_GROOVES_EFFECT_CALLBACK);
+		strConCat("boolen updateGroovesEffect=", LUA_UPDATE_GROOVES_EFFECT_COMMAND, "(int Polar_Coors_deg, int level(0-32767), int RampLenght)"), &inArgs[0], LUA_UPDATE_GROOVES_EFFECT_CALLBACK);
 
 	CLuaFunctionData::getInputDataForFunctionRegistration(inArgs_PLAY_DIR_EFFECT, inArgs);
 	simRegisterCustomLuaFunction(LUA_PLAY_DIR_EFFECT_COMMAND,
